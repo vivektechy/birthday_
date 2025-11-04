@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Happy Birthday Jiju</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; }
+    .fadeIn { animation: fadeIn 1.2s ease forwards; opacity: 0; }
+    @keyframes fadeIn { to { opacity: 1; } }
+    .float { animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px);} }
+
+    /* 3D cake helpers */
+    .perspective { perspective: 900px; }
+    .transform-style-preserve-3d { transform-style: preserve-3d; }
+
+    /* flame flicker */
+    .flicker { box-shadow: 0 0 12px rgba(255,223,82,0.9); animation: flick 900ms infinite; }
+    @keyframes flick { 0% { transform: translateY(0) scale(1); opacity:1 } 50% { transform: translateY(-2px) scale(.95); opacity:.9 } 100% { transform: translateY(0) scale(1); opacity:1 } }
+
+    /* animations */
+    @keyframes sliceFall { 0% { transform: translateY(0) rotate(0deg) scale(1); opacity:1 } 100% { transform: translateY(140px) rotate(20deg) scale(.6); opacity:0 } }
+    @keyframes floatUp { 0% { transform: translateY(0) } 100% { transform: translateY(-120vh) } }
+    @keyframes petalFall { 0% { transform: translateY(-10vh) rotate(0deg) } 100% { transform: translateY(110vh) rotate(360deg); opacity:0 } }
+
+    /* popup style */
+    .invite-popup { backdrop-filter: blur(6px); }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-blue-50 to-indigo-100 min-h-screen flex flex-col items-center justify-start text-center py-10">
+  <div class="fadeIn w-full max-w-3xl">
+    <h1 class="text-4xl md:text-5xl font-bold text-indigo-600 drop-shadow-lg">🎉 Happy Birthday Jiju 🎉</h1>
+    <p class="mt-3 text-gray-700 text-lg">Wishing you a day filled with joy, love & endless blessings!</p>
+
+    <div class="flex items-center justify-center gap-4 mt-6">
+      <button id="surpriseBtn" class="px-6 py-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition transform hover:scale-105">Click for Surprise 🎁</button>
+     
+    </div>
+    <div class="flex items-center justify-center gap-4 mt-6">
+      <button id="game" class="px-6 py-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition transform hover:scale-105">Click for  game  </button>
+     
+    </div>
+
+    <div id="surpriseBox" class="hidden mt-8 fadeIn">
+      <h2 class="text-3xl font-semibold text-purple-600 mb-4">💝 Surprise Wishes 💝</h2>
+      <p class="text-gray-800 max-w-xl mx-auto mb-4">Dear Jiju, you're not just family, you're a blessing! May this year bring success, happiness, and all your dreams come true! 💫</p>
+      <div class="flex gap-3 justify-center flex-wrap mb-6">
+        <div class="w-20 h-20 bg-yellow-300 rounded-full flex items-center justify-center text-3xl float">🎂</div>
+        <div class="w-20 h-20 bg-pink-300 rounded-full flex items-center justify-center text-3xl float">🎁</div>
+        <div class="w-20 h-20 bg-green-300 rounded-full flex items-center justify-center text-3xl float">✨</div>
+        <div class="w-20 h-20 bg-blue-300 rounded-full flex items-center justify-center text-3xl float">❤️</div>
+      </div>
+
+      <!-- Virtual 3D Cake -->
+      <div class="mt-8 flex flex-col items-center">
+        <div id="cake" class="cake-wrapper cursor-pointer perspective" role="button" aria-label="Cut the cake">
+          <div class="cake-3d transform-style-preserve-3d relative w-56">
+            <!-- bottom tier -->
+            <div class="cake-base w-56 h-28 bg-gradient-to-b from-pink-400 to-pink-500 rounded-xl shadow-xl relative z-10"></div>
+            <!-- middle tier (slightly smaller) -->
+            <div class="cake-layer w-48 h-20 bg-gradient-to-b from-white to-rose-100 rounded-xl -mt-8 mx-auto shadow-md relative z-20"></div>
+            <!-- top tier -->
+            <div id="cakeTop" class="cake-top w-40 h-12 bg-gradient-to-b from-yellow-200 to-yellow-300 rounded-xl -mt-7 mx-auto shadow-md flex justify-center items-center text-2xl relative z-30">🎂</div>
+            <!-- candle -->
+            <div id="candle" class="candle w-3 h-12 bg-blue-500 mx-auto -mt-2 relative flex flex-col items-center cursor-pointer z-40" role="button" aria-label="Blow candle">
+              <div id="flame" class="w-3 h-3 bg-yellow-300 rounded-full flicker"></div>
+            </div>
+          </div>
+        </div>
+        <p class="mt-3 text-lg text-purple-700 font-semibold">Click candle to blow & click cake to cut 🎂✨</p>
+      </div>
+
+      <p class="mt-6 text-gray-600">A sweet cake just for you 🎂💛</p>
+    </div>
+  </div>
+
+  <!-- Hidden audio elements (preload) -->
+  <audio id="knifeAudio" preload="auto" src="happy-birthday-254480.mp3"></audio>
+  
+
+  <script>
+    // Elements
+    const btn = document.getElementById('surpriseBtn');
+    const box = document.getElementById('surpriseBox');
+    const cake = document.getElementById('cake');
+    const cakeTop = document.getElementById('cakeTop');
+    const candle = document.getElementById('candle');
+    const flame = document.getElementById('flame');
+
+    // Audio (single declarations)
+    const knifeSound = document.getElementById('knifeAudio');
+    const blowSound = document.getElementById('blowAudio');
+    const voiceWish = document.getElementById('voiceAudio');
+
+    // Toggle surprise box
+    btn.addEventListener('click', () => {
+      box.classList.toggle('hidden');
+      confetti();
+    });
+
+    // Candle blow action
+    candle.addEventListener('click', (e) => {
+      e.stopPropagation(); // prevent cake click bubbling
+      // animate flame out
+      flame.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      flame.style.opacity = '0';
+      flame.style.transform = 'scale(.6) translateY(-6px)';
+      // play sound and show puff
+      blowSound.currentTime = 0; blowSound.play().catch(()=>{});
+      createBlowEffect();
+      confettiSmall();
+    });
+
+    // Cake cut action
+    cake.addEventListener('click', () => {
+      // animate top slice: lift -> fall
+      cakeTop.style.transition = 'transform 0.6s cubic-bezier(.2,.9,.3,1), opacity 0.6s';
+      cakeTop.style.transform = 'translateY(8px) scale(1.03) rotate(-6deg)';
+
+      // play knife sound once
+      knifeSound.currentTime = 0; knifeSound.play().catch(()=>{});
+
+      setTimeout(() => {
+        cakeTop.style.transform = 'translateY(200px) scale(.6) rotate(20deg)';
+        cakeTop.style.opacity = '0';
+      }, 350);
+
+      // celebratory effects
+      launchBalloons();
+      rosePetals();
+      // play voice wish slightly delayed so it doesn't overlap badly
+      setTimeout(()=>{ voiceWish.currentTime = 0; voiceWish.play().catch(()=>{}); }, 500);
+      showJijuPopup();
+      confetti();
+    });
+
+    // Create blow visual
+    function createBlowEffect(){
+      const blow = document.createElement('div');
+      blow.innerText = '💨';
+      blow.style.position = 'fixed';
+      blow.style.left = '50%';
+      blow.style.top = '42%';
+      blow.style.transform = 'translateX(-50%)';
+      blow.style.fontSize = '3rem';
+      blow.style.opacity = '1';
+      blow.style.transition = 'opacity 1s, transform 1s';
+      document.body.appendChild(blow);
+      setTimeout(()=>{ blow.style.transform = 'translateX(-50%) translateY(-60px)'; blow.style.opacity = '0'; }, 50);
+      setTimeout(()=> blow.remove(), 1100);
+    }
+
+    // Balloons
+    function launchBalloons(){
+      for(let i=0;i<8;i++){
+        const b = document.createElement('div');
+        b.innerText = '🎈';
+        b.style.position = 'fixed';
+        b.style.left = (10 + Math.random()*80) + 'vw';
+        b.style.bottom = '-40px';
+        b.style.fontSize = (18 + Math.random()*22) + 'px';
+        b.style.zIndex = 2000;
+        b.style.pointerEvents = 'none';
+        const dur = 4 + Math.random()*3;
+        b.style.transition = `transform ${dur}s ease-out, opacity ${dur}s ease-out`;
+        document.body.appendChild(b);
+        // trigger rise
+        requestAnimationFrame(()=>{
+          b.style.transform = `translateY(-120vh)`;
+          b.style.opacity = '0.95';
+        });
+        setTimeout(()=> b.remove(), (dur*1000)+800);
+      }
+    }
+
+    // Rose petals
+    function rosePetals(){
+      for(let i=0;i<20;i++){
+        const p = document.createElement('div');
+        p.innerText = '🌹';
+        p.style.position = 'fixed';
+        p.style.left = Math.random()*100 + 'vw';
+        p.style.top = '-30px';
+        p.style.fontSize = (14 + Math.random()*24) + 'px';
+        p.style.zIndex = 1800;
+        p.style.pointerEvents = 'none';
+        p.style.animation = `petalFall ${4 + Math.random()*3}s linear`;
+        document.body.appendChild(p);
+        setTimeout(()=> p.remove(), 6500);
+      }
+    }
+
+    // Popup
+    function showJijuPopup(){
+      const pop = document.createElement('div');
+      pop.className = 'invite-popup fixed top-1/2 left-1/2 bg-white shadow-xl p-6 rounded-xl text-xl font-bold z-50';
+      pop.style.transform = 'translate(-50%, -50%) scale(0)';
+      pop.style.transition = 'transform 400ms ease, opacity 400ms ease';
+      pop.innerText = '👨  wishing you a day full of joy and happiness may god give you everything that u want  u in life happiest birtday ever !';
+      document.body.appendChild(pop);
+      setTimeout(()=>{ pop.style.transform = 'translate(-50%, -50%) scale(1)'; pop.style.opacity = '1'; }, 30);
+      setTimeout(()=>{ pop.style.opacity = '0'; pop.style.transform = 'translate(-50%, -50%) scale(.9)'; }, 2000);
+      setTimeout(()=> pop.remove(), 2600);
+    }
+
+    // Confetti (big)
+    function confetti(){
+      for(let i = 0; i < 60; i++){
+        const emoji = ['🎉','✨','💜','🎊','🥳'][Math.floor(Math.random()*5)];
+        const el = document.createElement('div');
+        el.innerText = emoji;
+        el.style.position = 'fixed';
+        el.style.left = Math.random()*100 + 'vw';
+        el.style.top = '-10px';
+        el.style.fontSize = (12 + Math.random()*24) + 'px';
+        el.style.zIndex = 1500;
+        el.style.pointerEvents = 'none';
+        const dur = 2 + Math.random()*3;
+        el.style.transition = `transform ${dur}s linear, opacity ${dur}s linear`;
+        document.body.appendChild(el);
+        requestAnimationFrame(()=>{ el.style.transform = `translateY(110vh) rotate(${Math.random()*720 - 360}deg)`; el.style.opacity = '0'; });
+        setTimeout(()=> el.remove(), (dur*1000)+200);
+      }
+    }
+
+    // Smaller confetti for candle blow
+    function confettiSmall(){
+      for(let i = 0; i < 20; i++){
+        const emoji = ['✨','💫','🌟'][Math.floor(Math.random()*3)];
+        const el = document.createElement('div');
+        el.innerText = emoji;
+        el.style.position = 'fixed';
+        el.style.left = (50 + (Math.random()*16 - 8)) + 'vw';
+        el.style.top = '42%';
+        el.style.fontSize = (12 + Math.random()*18) + 'px';
+        el.style.zIndex = 1500;
+        el.style.pointerEvents = 'none';
+        const dur = 1 + Math.random()*1.5;
+        el.style.transition = `transform ${dur}s ease-out, opacity ${dur}s ease-out`;
+        document.body.appendChild(el);
+        requestAnimationFrame(()=>{ el.style.transform = `translateY(-30vh) translateX(${(Math.random()*40-20)}px) rotate(${Math.random()*360}deg)`; el.style.opacity = '0'; });
+        setTimeout(()=> el.remove(), (dur*1000)+200);
+      }
+    }
+
+    // 
+    document.getElementById("game").addEventListener("click", function() {
+    window.location.href = "game.html"; // redirect to another page
+});
+    
+    // Make sure touch works on mobile: add touch listeners mirroring clicks
+    candle.addEventListener('touchstart', (e)=>{ e.preventDefault(); candle.click(); });
+    cake.addEventListener('touchstart', (e)=>{ e.preventDefault(); cake.click(); });
+
+    // Accessibility: keyboard activation
+    cake.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') cake.click(); });
+    candle.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') candle.click(); });
+
+  </script>
+
+  <style>
+    /* Small responsive tweaks */
+    @media (max-width:640px){
+      .cake-3d { transform: scale(.9); }
+    }
+    
+  </style>
+</body>
+</html>

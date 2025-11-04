@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jiju Birthday — Cake Catcher</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#ff6b6b;--muted:#94a3b8}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial;color:#e6eef8;background:radial-gradient(1000px 600px at 10% 20%, #0b1b2b 0%, transparent 20%), radial-gradient(800px 500px at 90% 80%, #1b2433 0%, transparent 20%), var(--bg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .wrap{width:100%;max-width:980px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6);}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .logo{width:60px;height:60px;border-radius:12px;background:linear-gradient(135deg,#ffd166,#ff6b6b);display:flex;align-items:center;justify-content:center;font-weight:700;color:#2b0a07;font-size:20px}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:12px}
+    .btn{background:#0f1724;border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px;color:#e6eef8;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,#ff6b6b,#ffb86b);color:#111}
+    canvas{display:block;background:linear-gradient(180deg,#071025, #0d1b2a);border-radius:12px;width:100%;height:520px}
+    .hud{display:flex;gap:14px;align-items:center;margin-top:12px}
+    .stat{background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:10px;color:#dbeafe;font-size:15px}
+    .muted{color:var(--muted);font-size:13px}
+    .footer{margin-top:12px;color:var(--muted);font-size:13px}
+    @media (max-width:600px){canvas{height:420px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">🎂</div>
+      <div>
+        <h1>Cake Catcher — a birthday game for you Jiju</h1>
+        <p class="lead">Catch cakes, avoid spicy poppers, collect hearts.</p>
+      </div>
+    </header>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:10px;align-items:center">
+        <label class="muted">Celebrant name:</label>
+        <input id="nameInput" placeholder="Jiju" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff;min-width:140px" />
+        <button class="btn" id="soundToggle">🔊 Sound: ON</button>
+      </div>
+
+      <div class="controls">
+        <button class="btn primary" id="startBtn">Start</button>
+        <button class="btn" id="pauseBtn">Pause</button>
+        <button class="btn" id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <main style="margin-top:12px">
+      <canvas id="gameCanvas" width="940" height="520"></canvas>
+      <div class="hud">
+        <div class="stat">Score: <span id="score">0</span></div>
+        <div class="stat">Lives: <span id="lives">3</span></div>
+        <div class="stat">Time: <span id="time">0.0</span>s</div>
+        <div style="margin-left:auto" class="muted">Use ← → or A D / Tap left-right on mobile</div>
+      </div>
+      <div class="footer">Tip: Eat the cakes, but avoid the red poppers — they spice things up! Collect hearts for extra lives. Reach 100 to trigger a special confetti celebration.</div>
+    </main>
+  </div>
+
+  <script>
+    // Cake Catcher — single file game
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width, H = canvas.height;
+
+    // UI elements
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const nameInput = document.getElementById('nameInput');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const timeEl = document.getElementById('time');
+    const soundToggle = document.getElementById('soundToggle');
+
+    let lastTime = performance.now();
+    let elapsed = 0; // seconds
+    let running = false;
+    let soundOn = true;
+
+    // Game state
+    let player = {x: W/2, y: H-60, w: 120, h: 22, speed: 600, vx:0};
+    let cakes = [];
+    let particles = [];
+    let score = 0;
+    let lives = 3;
+    let spawnTimer = 0;
+    let difficulty = 1.0; // scales spawn / speed
+
+    // Input
+    const keys = {};
+    window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()] = true; if(e.key===' '){e.preventDefault()} });
+    window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+
+    // Touch controls
+    canvas.addEventListener('touchstart', handleTouch);
+    canvas.addEventListener('touchmove', handleTouch);
+    function handleTouch(e){ e.preventDefault(); const t = e.touches[0]; const rect = canvas.getBoundingClientRect(); const x = (t.clientX - rect.left) * (canvas.width/rect.width); if(x < canvas.width/2) keys['arrowleft'] = true, keys['arrowright'] = false; else keys['arrowright'] = true, keys['arrowleft'] = false; }
+    window.addEventListener('touchend', ()=>{ keys['arrowleft']=false; keys['arrowright']=false; });
+
+    // Sound (simple WebAudio beeps)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq=440, length=0.08){ if(!soundOn) return; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type='sine'; o.frequency.value=freq; g.gain.value=0.08; o.connect(g); g.connect(audioCtx.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + length); o.stop(audioCtx.currentTime + length + 0.02); }
+
+    soundToggle.addEventListener('click', ()=>{ soundOn = !soundOn; soundToggle.textContent = `🔊 Sound: ${soundOn? 'ON':'OFF'}`; });
+
+    // Entity creation
+    function spawnItem(){
+      const r = Math.random();
+      const x = Math.random()*(W-60)+30;
+      if(r < 0.7){ // cake
+        cakes.push({type:'cake',x:x,y:-30,vy:80 + Math.random()*120 + difficulty*30, wob:Math.random()*0.02, size:24 + Math.random()*18});
+      } else if (r < 0.9){ // spicy popper (bad)
+        cakes.push({type:'popper',x:x,y:-30,vy:120 + Math.random()*160 + difficulty*40, wob:Math.random()*0.03, size:20 + Math.random()*14});
+      } else { // heart (life)
+        cakes.push({type:'heart',x:x,y:-30,vy:90 + Math.random()*80 + difficulty*20, wob:Math.random()*0.03, size:20});
+      }
+    }
+
+    // Particle confetti
+    function makeConfetti(x,y,count=25){ for(let i=0;i<count;i++){ particles.push({x,y,vx:(Math.random()-0.5)*300, vy:(Math.random()-0.9)*300 + -100, life:1, size:4+Math.random()*6, col:(['#ff6b6b','#ffd166','#6bf5ff','#b18cff'])[Math.floor(Math.random()*4)]}); } }
+
+    // Reset
+    function resetGame(){ cakes=[]; particles=[]; score=0; lives=3; elapsed=0; difficulty=1.0; player.x = W/2; updateUI(); }
+
+    function updateUI(){ scoreEl.textContent = Math.max(0, Math.floor(score)); livesEl.textContent = lives; timeEl.textContent = elapsed.toFixed(1); }
+
+    // Start / Pause
+    startBtn.addEventListener('click', ()=>{ if(!running){ running=true; lastTime = performance.now(); if(audioCtx.state==='suspended') audioCtx.resume(); } });
+    pauseBtn.addEventListener('click', ()=>{ running = !running; pauseBtn.textContent = running? 'Pause':'Resume'; if(!running) beep(220,0.1); });
+    resetBtn.addEventListener('click', ()=>{ running=false; pauseBtn.textContent='Pause'; resetGame(); });
+
+    // Main loop
+    function loop(now){
+      const dt = Math.min(0.05, (now - lastTime)/1000);
+      lastTime = now;
+      if(running){ step(dt); }
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    function step(dt){
+      elapsed += dt; difficulty = 1 + elapsed/20;
+      spawnTimer += dt;
+      if(spawnTimer > Math.max(0.25, 0.9 - difficulty*0.05)) { spawnItem(); spawnTimer = 0; }
+
+      // Player movement
+      player.vx = 0;
+      if(keys['arrowleft'] || keys['a'] || keys['arrowleft']) player.vx = -player.speed;
+      if(keys['arrowright'] || keys['d'] || keys['arrowright']) player.vx = player.speed;
+      player.x += player.vx * dt;
+      player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x));
+
+      // Update cakes
+      for(let i=cakes.length-1;i>=0;i--){ let c=cakes[i]; c.y += c.vy*dt; c.x += Math.sin(elapsed*3 + i)*c.wob*60; if(c.y > H + 50){ cakes.splice(i,1); continue; }
+        // collision with player
+        const dx = Math.abs(c.x - player.x);
+        if(dx < player.w/2 + c.size && c.y > player.y - player.h/2 - 20 && c.y < player.y + 40){
+          if(c.type==='cake'){ score += 10 + Math.floor(difficulty*2); beep(880,0.06); makeConfetti(c.x, c.y, 8); }
+          else if(c.type==='popper'){ score = Math.max(0, score - 15); lives -=1; beep(120,0.18); makeConfetti(c.x, c.y, 5); }
+          else if(c.type==='heart'){ lives = Math.min(9, lives+1); score += 20; beep(1100,0.08); makeConfetti(c.x, c.y, 14); }
+          cakes.splice(i,1);
+        }
+      }
+
+      // Update particles
+      for(let i=particles.length-1;i>=0;i--){ let p = particles[i]; p.vy += 600*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt*0.8; if(p.life <=0) particles.splice(i,1); }
+
+      // Check game over
+      if(lives <= 0){ running = false; showGameOver(); }
+
+      // Win milestone
+      if(score >= 100 && running){ running = false; showWin(); }
+
+      updateUI();
+    }
+
+    function render(){
+      // background
+      ctx.clearRect(0,0,W,H);
+      // gradient sky
+      const g = ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'rgba(255,255,255,0.02)'); g.addColorStop(1,'rgba(0,0,0,0.05)'); ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+      // balloons in back
+      for(let i=0;i<8;i++){ const bx = 60 + (i*(W-120)/7) + Math.sin(elapsed*0.6 + i)*8; const by = 80 + Math.cos(elapsed*1.1 + i)*6; drawBalloon(bx,by, 18 + (i%3)*6); }
+
+      // draw player (plate)
+      ctx.save(); ctx.translate(player.x, player.y);
+      // plate
+      ctx.fillStyle='#dbeafe'; ctx.beginPath(); ctx.ellipse(0,6,player.w/2,12,0,0,Math.PI*2); ctx.fill();
+      // fork
+      ctx.fillStyle='#e2e8f0'; ctx.fillRect(-player.w/2 -10, -28, 8, 36);
+      ctx.fillRect(player.w/2 +2, -28, 8, 36);
+      ctx.restore();
+
+      // draw cakes/items
+      for(let c of cakes){ drawItem(c); }
+
+      // particles
+      for(let p of particles){ ctx.fillStyle = p.col; ctx.fillRect(p.x, p.y, p.size, p.size*0.6); }
+
+      // top-left HUD (name)
+      ctx.fillStyle = '#fff'; ctx.font = '18px  Inter, system-ui'; const name = nameInput.value.trim() || 'Jiju'; ctx.fillText(`${name}'s Birthday!`, 18, 28);
+
+      // bottom message
+      if(!running){ ctx.fillStyle='rgba(255,255,255,0.04)'; ctx.fillRect(0,H-40,W,40); ctx.fillStyle='#cfe7ff'; ctx.font='14px Inter'; ctx.fillText('Press Start to play — eat cakes, avoid poppers. Good luck!', 18, H-14); }
+    }
+
+    function drawBalloon(x,y,size){ ctx.save(); ctx.translate(x,y); ctx.beginPath(); ctx.ellipse(0,0,size, size*1.1,0,0,Math.PI*2); ctx.fillStyle = 'rgba(255,192,203,0.18)'; ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,size*1.1); ctx.lineTo(0,size*2.1); ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.stroke(); ctx.restore(); }
+
+    function drawItem(c){ ctx.save(); ctx.translate(c.x, c.y);
+      if(c.type==='cake'){
+        // layered cake slice
+        ctx.beginPath(); ctx.moveTo(-c.size,12); ctx.lineTo(c.size,12); ctx.lineTo(0,-c.size); ctx.closePath(); ctx.fillStyle='#fff5e6'; ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-c.size+2,4); ctx.lineTo(c.size-2,4); ctx.lineTo(0,-c.size+8); ctx.closePath(); ctx.fillStyle='#ffb86b'; ctx.fill();
+        // cherry
+        ctx.beginPath(); ctx.arc(0,-c.size+1,5,0,Math.PI*2); ctx.fillStyle='#ff6b6b'; ctx.fill();
+      } else if(c.type==='popper'){
+        ctx.beginPath(); ctx.arc(0,0,c.size,0,Math.PI*2); ctx.fillStyle='#ff6b6b'; ctx.fill(); ctx.fillStyle='#fff'; ctx.fillRect(-2,-2,4,4);
+      } else if(c.type==='heart'){
+        ctx.beginPath(); const s=c.size/12; ctx.moveTo(0, -s*18); ctx.bezierCurveTo(s*12, -s*26, s*30, -s*8, 0, s*18); ctx.bezierCurveTo(-s*30, -s*8, -s*12, -s*26, 0, -s*18); ctx.fillStyle='#ff9bd6'; ctx.fill();
+      }
+      ctx.restore(); }
+
+    function showGameOver(){ // modal-like
+      const name = nameInput.value.trim() || 'Jiju';
+      setTimeout(()=>{ alert(`${name}, oh no! Game over. Your score: ${Math.floor(score)}.`); }, 60);
+    }
+
+    function showWin(){ const name = nameInput.value.trim() || 'Jiju'; makeConfetti(W/2, H/2, 120); setTimeout(()=>{ alert(`🎉 ${name} — Amazing! You hit ${Math.floor(score)} points. Happy Birthday!`); }, 120); }
+
+    // resize handling
+    function fit(){ const rect = canvas.getBoundingClientRect(); const ratio = canvas.width / canvas.height; // keep internal resolution fixed for crispness
+      // no-op
+    }
+    window.addEventListener('resize', fit);
+
+    // initialize
+    resetGame(); requestAnimationFrame(loop);
+
+    // small animation to hint to press start: nudge player
+    setInterval(()=>{ if(!running){ player.x += Math.sin(performance.now()/600)*2; } }, 120);
+
+    // helpful keyboard shortcuts
+    window.addEventListener('keydown',(e)=>{
+      if(e.key==='s') startBtn.click();
+      if(e.key==='r') resetBtn.click();
+      if(e.key==='p') pauseBtn.click();
+    });
+
+  </script>
+</body>
+</html>

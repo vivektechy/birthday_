@@ -1,0 +1,28 @@
+
+[
+    {
+        "id": 1001,
+        "imageUrl": "gfg.png",
+        "firstName": "Thomas",
+        "lastName": "Leannon",
+        "email": "Thomas.Leannon@gfg.com",
+        "contactNumber": "4121091095",
+        "age": 43,
+        "dob": "26/08/1979",
+        "salary": 1,
+        "address": "Address1"
+    },
+    {
+        "id": 2211,
+        "imageUrl": "gfg.png",
+        "firstName": "Thomas",
+        "lastName": "Leannon",
+        "email": "Thomas.Leannon@gfg.com",
+        "contactNumber": "4121091095",
+        "age": 43,
+        "dob": "26/08/1979",
+        "salary": 1,
+        "address": "Address1"
+    }
+   
+]
